@@ -1,0 +1,36 @@
+# Local build settings, signing material, and caches
+local.properties
+.gradle/
+**/build/
+*.jks
+*.keystore
+__pycache__/
+*.pyc
+
+# Private development/session artifacts (never publication inputs)
+.copilot/
+.env
+.env.*
+credentials.json
+auth.json
+secrets.json
+secrets.yaml
+secrets.yml
+capi.local.token
+copilot.log
+session-state*
+*.bak
+*.backup
+*~
+audit.json
+audit.txt
+privacy-audit*
+*private-report*
+source-review.json
+source-review.txt
+apk-review.json
+apk-review.txt
+history-candidates.json
+commit-identities-masked.json
+local-baseline.json
+.privacy-gate-tests-*/
