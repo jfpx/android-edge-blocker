@@ -10,8 +10,8 @@ android {
         applicationId "com.simple.edgeblocker"
         minSdk 23
         targetSdk 30
-        versionCode 7
-        versionName "2.1"
+        versionCode 9
+        versionName "2.3"
     }
 
     buildTypes {

@@ -10,11 +10,11 @@ public class EdgeOverlayGeometryTest {
 
     @Test
     public void keepsFullTopAndBottomWhenCenterSpaceFits() {
-        EdgeOverlayGeometry.Geometry geometry = EdgeOverlayGeometry.calculate(2400, 1080, true, true);
+        EdgeOverlayGeometry.Geometry geometry = EdgeOverlayGeometry.calculate(1080, 1920, true, true);
 
-        assertEquals(400, geometry.topHeightPx);
-        assertEquals(400, geometry.bottomHeightPx);
-        assertEquals(280, geometry.centerHeightPx);
+        assertEquals(300, geometry.topHeightPx);
+        assertEquals(600, geometry.bottomHeightPx);
+        assertEquals(1020, geometry.centerHeightPx);
         assertEquals(50, geometry.leftWidthPx);
         assertEquals(50, geometry.rightWidthPx);
     }
@@ -23,8 +23,8 @@ public class EdgeOverlayGeometryTest {
     public void shrinksTopAndBottomToPreserveCenterSpace() {
         EdgeOverlayGeometry.Geometry geometry = EdgeOverlayGeometry.calculate(1280, 720, true, true);
 
-        assertEquals(260, geometry.topHeightPx);
-        assertEquals(260, geometry.bottomHeightPx);
+        assertEquals(173, geometry.topHeightPx);
+        assertEquals(347, geometry.bottomHeightPx);
         assertEquals(200, geometry.centerHeightPx);
     }
 
@@ -62,7 +62,7 @@ public class EdgeOverlayGeometryTest {
         for (int width : new int[]{Integer.MIN_VALUE, 0, 1, 2, 80, 1080, Integer.MAX_VALUE}) {
             for (int height : new int[]{Integer.MIN_VALUE, 0, 1, 2, 720, 1920, Integer.MAX_VALUE}) {
                 EdgeOverlayGeometry.Geometry geometry = EdgeOverlayGeometry.calculate(
-                        width, height, Integer.MAX_VALUE, Integer.MAX_VALUE, 200, true, true);
+                        width, height, Integer.MAX_VALUE, Integer.MAX_VALUE, Integer.MAX_VALUE, 200, true, true);
                 assertTrue(geometry.topHeightPx >= 0);
                 assertTrue(geometry.bottomHeightPx >= 0);
                 assertTrue(geometry.centerHeightPx >= 0);
@@ -76,9 +76,10 @@ public class EdgeOverlayGeometryTest {
     @Test
     public void disablesBothSidesWithoutChangingTopBottom() {
         EdgeOverlayGeometry.Geometry geometry = EdgeOverlayGeometry.calculate(1080, 1920, false, false);
-        assertEquals(400, geometry.topHeightPx);
-        assertEquals(400, geometry.bottomHeightPx);
+        assertEquals(300, geometry.topHeightPx);
+        assertEquals(600, geometry.bottomHeightPx);
         assertFalse(geometry.hasLeftOverlay());
         assertFalse(geometry.hasRightOverlay());
     }
+
 }

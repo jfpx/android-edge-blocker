@@ -2,7 +2,8 @@ package com.simple.edgeblocker;
 
 final class EdgeOverlayGeometry {
 
-    static final int TOP_BOTTOM_TARGET_PX = 400;
+    static final int TOP_TARGET_PX = 300;
+    static final int BOTTOM_TARGET_PX = 600;
     static final int SIDE_TARGET_PX = 50;
     private static final int MIN_CENTER_PX = 200;
     private static final int MAX_CENTER_PX = 400;
@@ -14,7 +15,8 @@ final class EdgeOverlayGeometry {
         return calculate(
                 screenWidthPx,
                 screenHeightPx,
-                TOP_BOTTOM_TARGET_PX,
+                TOP_TARGET_PX,
+                BOTTOM_TARGET_PX,
                 SIDE_TARGET_PX,
                 resolveMinimumCenterPx(screenHeightPx),
                 leftEnabled,
@@ -25,7 +27,8 @@ final class EdgeOverlayGeometry {
     static Geometry calculate(
             int screenWidthPx,
             int screenHeightPx,
-            int requestedTopBottomPx,
+            int requestedTopPx,
+            int requestedBottomPx,
             int requestedSidePx,
             int requestedMinCenterPx,
             boolean leftEnabled,
@@ -33,10 +36,12 @@ final class EdgeOverlayGeometry {
     ) {
         int safeWidth = Math.max(1, screenWidthPx);
         int safeHeight = Math.max(1, screenHeightPx);
-        int topBottomTargetPx = Math.max(1, requestedTopBottomPx);
+        int topTargetPx = Math.max(1, requestedTopPx);
+        int bottomTargetPx = Math.max(1, requestedBottomPx);
+        long totalTargetPx = (long) topTargetPx + bottomTargetPx;
         int minCenterPx = Math.min(Math.max(0, requestedMinCenterPx), Math.max(0, safeHeight - 2));
 
-        int totalBlockedHeight = (int) Math.min((long) topBottomTargetPx * 2,
+        int totalBlockedHeight = (int) Math.min(totalTargetPx,
                 Math.max(0, safeHeight - minCenterPx));
         if (safeHeight >= 2) {
             totalBlockedHeight = Math.max(2, totalBlockedHeight);
@@ -45,8 +50,11 @@ final class EdgeOverlayGeometry {
         }
         totalBlockedHeight = Math.min(totalBlockedHeight, safeHeight);
 
-        int topHeightPx = Math.min(topBottomTargetPx, totalBlockedHeight / 2);
-        int bottomHeightPx = Math.min(topBottomTargetPx, totalBlockedHeight - topHeightPx);
+        int topHeightPx = (int) ((long) totalBlockedHeight * topTargetPx / totalTargetPx);
+        if (safeHeight >= 2) {
+            topHeightPx = Math.max(1, Math.min(topHeightPx, totalBlockedHeight - 1));
+        }
+        int bottomHeightPx = totalBlockedHeight - topHeightPx;
 
         if (safeHeight >= 2) {
             if (topHeightPx == 0) {

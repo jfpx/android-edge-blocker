@@ -10,9 +10,9 @@ A simple Android app that blocks accidental edge touches on smartphones, specifi
 
 **One-sentence summary:** Adds touch-blocking edge overlays at the screen sides and top/bottom to reduce accidental touches.
 
-## Current behavior (v2.1)
+## Current behavior (v2.3)
 
-- Top/bottom targets stay at **400px** when space allows; on short screens they shrink to keep a **200–400px center safe zone**.
+- Targets are **top 300px / bottom 600px**, in physical pixels. Short screens shrink them proportionally to retain the existing **200–400px center safe zone**. Side widths remain **50px**.
 - Left/right edge overlays are **50px physical pixels**, independently enabled by checkboxes, and default to **on** for fresh installs and upgraded prefs.
 - Upgrades preserve the existing **auto_start_enabled** preference.
 - The foreground-service notification includes a **Stop** action. Allow notifications on Android 13+ to show it; the main-screen Stop button also works.
@@ -458,9 +458,9 @@ This project was created to solve real pain points for elderly users. Thanks to 
 
 **一句话说明：** 在屏幕边缘添加可拦截触摸的遮挡层，减少意外误触。
 
-## 当前行为（v2.1）
+## 当前行为（v2.3）
 
-- 顶部/底部目标高度在空间足够时保持 **400px**；屏幕较矮时会自动收缩，保留 **200–400px** 的中间安全区。
+- 目标高度为 **顶部 300px / 底部 600px**（物理像素）；短屏按比例收缩，仍保留原有 **200–400px** 中间安全区。左右宽度保持 **50px**。
 - 左/右边缘遮挡为 **50px 物理像素**，可独立勾选，新安装和升级后的默认值都是 **开启**。
 - 升级时会保留已有的 **auto_start_enabled** 设置。
 - 前台服务通知提供 **停止** 按钮；Android 13+ 需允许通知才能显示，也可使用主界面的停止按钮。
