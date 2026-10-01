@@ -6,9 +6,19 @@
 
 ## Overview
 
-A simple Android app that prevents accidental edge touches on smartphones, specifically designed for elderly users or those with trembling hands.
+A simple Android app that blocks accidental edge touches on smartphones, specifically designed for elderly users or those with trembling hands.
 
-**One-sentence summary:** Adds semi-transparent overlays at screen edges to provide visual cues that help users naturally avoid accidental touches.
+**One-sentence summary:** Adds touch-blocking edge overlays at the screen sides and top/bottom to reduce accidental touches.
+
+## Current behavior (v2.1)
+
+- Top/bottom targets stay at **400px** when space allows; on short screens they shrink to keep a **200–400px center safe zone**.
+- Left/right edge overlays are **50px physical pixels**, independently enabled by checkboxes, and default to **on** for fresh installs and upgraded prefs.
+- Upgrades preserve the existing **auto_start_enabled** preference.
+- The foreground-service notification includes a **Stop** action. Allow notifications on Android 13+ to show it; the main-screen Stop button also works.
+- Overlays are **touchable/blocking windows**: taps inside the overlay rectangles are blocked; the app remains interactive outside them.
+- Rotation/config changes rebuild all overlays; stop, permission revocation, or fatal errors remove all windows cleanly.
+- Layout uses the **physical display** (not RTL-mirrored edges), ignores insets on Android R+, and allows cutouts.
 
 ## Why This App?
 
@@ -23,35 +33,39 @@ A simple Android app that prevents accidental edge touches on smartphones, speci
 - Existing similar apps are either paid, overly complex, or no longer maintained
 
 **Solution:**
-- Adds **semi-transparent overlays** (10% gray, barely visible) at **top 400px** and **bottom 400px**
-- Users can see the overlay, but touches **pass through** (technically transparent to touch)
+- Adds **semi-transparent overlays** (10% gray, barely visible) at **top 400px** and **bottom 400px**, plus optional **left/right 50px** edge blocks
+- The overlay windows are **touch-blocking**, so taps inside those rectangles are prevented while the rest of the app still works
 - **Psychological cue effect**: Users naturally avoid edge areas when seeing the overlay
 - Auto-starts on boot, no manual activation needed
 
 ## Core Features
 
 ✅ **Edge Blocking**
-- Top 400px + Bottom 400px (customizable in code)
+- Top 400px + Bottom 400px targets, plus optional Left 50px + Right 50px edge blocks
 - 10% gray transparency (barely visible, but provides visual cue)
+- Left/right are independently enabled and default to on
 
 ✅ **Minimal Operation**
 - Install → Open → Grant Permission → Start → Done
-- No complex settings, no ads, no background uploads
+- Main screen includes auto-start and left/right edge checkboxes
+- No ads, no background uploads
 
 ✅ **Auto-start on Boot**
 - Automatically restores overlay after reboot
 - Persistent background service
 
+✅ **System Notification**
+- Foreground-service notification is required on Android 8+ and includes a Stop action
+
 ❌ **No Bloat**
-- No settings page (follows UNIX philosophy: do one thing well)
-- No notifications (silent operation)
+- No separate settings page; controls stay on the main screen
 - No network permission (completely offline)
 
 ## Quick Start
 
 ### 1. Download APK
 
-Download the APK file directly from the repository:
+Download the v2.1 APK directly from the repository:
 - **Filename:** `android-edge-blocker.apk`
 - **Size:** ~3 MB
 - **Location:** Repository root directory
@@ -65,10 +79,12 @@ Download the APK file directly from the repository:
 ### 3. Usage
 
 1. Open the app
-2. Tap "Start Blocking"
-3. Grant "Display over other apps" permission (redirects to system settings)
-4. Return to app, tap "Start Blocking" again
-5. ✅ Done! Very faint gray areas appear at screen top and bottom
+2. Leave the left/right checkboxes enabled if you want side blocking (default on)
+3. Optional: toggle auto-start
+4. Tap "Start Blocking"
+5. Grant "Display over other apps" permission (redirects to system settings)
+6. Return to app, tap "Start Blocking" again
+7. ✅ Done! Faint gray areas appear at screen top/bottom and enabled side edges
 
 ### 4. Verify Effect
 
@@ -80,13 +96,18 @@ Download the APK file directly from the repository:
 
 Reopen app → Tap "Stop Blocking"
 
+> Allow notifications to use the notification's Stop action. Otherwise, use the main-screen Stop button.
+
 ## Customization (Developers)
 
-To modify overlay parameters, edit `app/src/main/java/com/simple/edgeblocker/EdgeBlockService.java`:
+To modify overlay parameters, edit `app/src/main/java/com/simple/edgeblocker/EdgeOverlayGeometry.java`:
 
 ```java
-// Modify block height (pixels)
-private static final int BLOCK_HEIGHT = 400;  // Change to 500, 600, etc.
+// Top/bottom edge target height (physical pixels)
+static final int TOP_BOTTOM_TARGET_PX = 400;
+
+// Left/right edge target width (physical pixels)
+static final int SIDE_TARGET_PX = 50;
 
 // Modify color and transparency
 view.setBackgroundColor(Color.argb(26, 128, 128, 128));  // ARGB: Alpha, R, G, B
@@ -233,6 +254,7 @@ dependencies {
 
 | Version | versionCode | Key Changes |
 |---------|-------------|-------------|
+| v2.1 | 7 | Independent left/right toggles, 50px physical side overlays, geometry safety clamp, foreground Stop action, and permission-safe boot/rotation handling |
 | v2.0 | 6 | Production version (10% gray transparency) |
 | v1.5 | 5 | Added auto-start on boot |
 | v1.4 | 4 | Fixed FOREGROUND_SERVICE permission issue |
@@ -277,11 +299,11 @@ dependencies {
 
 ### Issue 3: Overlay too visible/not visible enough
 
-**Solution:** Modify transparency parameter in `EdgeBlockService.java` (see "Customization")
+**Solution:** Modify the geometry constants in `EdgeOverlayGeometry.java` and the color/transparency in `EdgeBlockService.java` (see "Customization")
 
 ### Issue 4: Want to block left/right edges
 
-**Solution:** Modify `createLayoutParams()` method to add left/right overlays (reference top/bottom implementation)
+**Solution:** Use the left/right checkboxes on the main screen; the side overlays are already built in
 
 ## Technical Implementation
 
@@ -292,7 +314,8 @@ Uses Android's `TYPE_APPLICATION_OVERLAY` to create system-level floating window
 ```java
 // Key flag combination
 params.flags = WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE      // Don't get focus
-             | WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL     // Touch pass-through
+             | WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL     // Block touches inside overlay windows
+             | WindowManager.LayoutParams.FLAG_WATCH_OUTSIDE_TOUCH // Keep outside touches available
              | WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS;   // Prevent clipping
 ```
 
@@ -310,7 +333,11 @@ startForeground(NOTIFICATION_ID, createNotification());
 @Override
 public void onReceive(Context context, Intent intent) {
     if (Intent.ACTION_BOOT_COMPLETED.equals(intent.getAction())) {
-        context.startService(new Intent(context, EdgeBlockService.class));
+        SharedPreferences prefs = context.getSharedPreferences(EdgeBlockerPrefs.PREFS_NAME, Context.MODE_PRIVATE);
+        if (prefs.getBoolean(EdgeBlockerPrefs.KEY_AUTO_START_ENABLED, true)
+                && Settings.canDrawOverlays(context)) {
+            ContextCompat.startForegroundService(context, new Intent(context, EdgeBlockService.class));
+        }
     }
 }
 ```
@@ -333,21 +360,20 @@ public void onReceive(Context context, Intent intent) {
 - **Theoretically supports all third-party apps** (not comprehensively tested)
 
 **❌ Cannot block (system limitations):**
-- **Bottom navigation bar** (3 buttons: Back/Home/Recents)
-  - Android system protection layer, no third-party app can overlay
-  - Purpose: Prevent malicious app hijacking
-- **Top status bar/notification panel**
-  - When pulling down notification panel, overlay is covered by system UI
-  - But overlay still effective when displayed within apps
-- **System settings pages** (Settings)
-  - Android security mechanism to prevent phishing attacks
-  - Overlay temporarily invisible when adjusting settings
+- **Bottom navigation bar / system gesture areas**
+   - Android reserves these zones; behavior depends on OS/OEM gesture handling
+- **Top status bar / notification panel**
+   - System UI and security surfaces may cover the overlay
+- **System settings and other security-sensitive screens**
+   - Android may reserve gestures or hide overlays for safety
+- **Some OEM physical devices**
+   - Real-device behavior is not guaranteed across vendors or custom ROMs
 
 ### Typical Use Case
 
 **Tested scenario: Blood glucose monitoring**
 - Elderly person uses Libre FreeStyle to view glucose data
-- ✅ Overlay covers screen top 400px + bottom 400px
+- ✅ Overlay covers screen top 400px + bottom 400px, plus enabled left/right 50px edges
 - ✅ Fingers won't accidentally touch edge causing unexpected exit when viewing data
 - ✅ Overlay auto-restores after device reboot
 
@@ -358,16 +384,17 @@ public void onReceive(Context context, Intent intent) {
 
 ### Overlay Behavior
 
-- **Touch pass-through**: Overlay doesn't intercept touch events, only provides visual cue
+- **Touchable blocking windows**: taps inside the overlay rectangles are blocked by the overlay windows
 - **Psychological cue**: Users naturally avoid seeing faint gray area
-- **Always displayed**: Overlays all blockable apps, won't be obscured
+- **Always displayed**: Overlays sit above blockable apps, but OS security surfaces can still win
+- **Physical left/right edges**: Uses screen-left and screen-right, not RTL-mirrored sides
 - **System-level permission**: Uses `TYPE_APPLICATION_OVERLAY` for global coverage
 
 ## Project Structure
 
 ```
 android-edge-blocker/
-├── android-edge-blocker.apk       # Directly installable APK
+├── android-edge-blocker.apk       # APK artifact (published feature build after validation)
 ├── app/
 │   ├── build.gradle               # App build configuration
 │   └── src/main/
@@ -416,8 +443,8 @@ This project was created to solve real pain points for elderly users. Thanks to 
 
 ---
 
-**Version:** v2.0  
-**Last Updated:** 2026-09-03  
+**Version:** v2.1  
+**Last Updated:** 2026-09-30  
 **Use Cases:** Elderly users, users with trembling hands, large-screen phones with serious accidental touches, devices with damaged USB preventing adb debugging  
 **Development Motivation:** Solve real problems for family, open-source sharing for others with same needs
 
@@ -427,9 +454,19 @@ This project was created to solve real pain points for elderly users. Thanks to 
 
 ## 概述
 
-一个简易的 Android 应用，防止智能手机边缘的意外触摸，专为老年用户或手抖用户设计。
+一个简易的 Android 应用，阻止智能手机边缘的意外触摸，专为老年用户或手抖用户设计。
 
-**一句话说明：** 在屏幕边缘添加半透明遮挡层，提供视觉提示，帮助用户自然地避免意外触摸。
+**一句话说明：** 在屏幕边缘添加可拦截触摸的遮挡层，减少意外误触。
+
+## 当前行为（v2.1）
+
+- 顶部/底部目标高度在空间足够时保持 **400px**；屏幕较矮时会自动收缩，保留 **200–400px** 的中间安全区。
+- 左/右边缘遮挡为 **50px 物理像素**，可独立勾选，新安装和升级后的默认值都是 **开启**。
+- 升级时会保留已有的 **auto_start_enabled** 设置。
+- 前台服务通知提供 **停止** 按钮；Android 13+ 需允许通知才能显示，也可使用主界面的停止按钮。
+- 遮挡层是**可触摸/可拦截的窗口**：遮挡矩形内部的点击会被拦住，矩形外仍可正常操作。
+- 旋转/配置变化会重建全部遮挡；停止、撤销权限或严重错误会清理所有窗口。
+- 布局使用**物理屏幕边缘**（不是 RTL 镜像边缘），R 及以上忽略 insets，并允许 cutout。
 
 ## 为什么需要这个应用？
 
@@ -444,35 +481,39 @@ This project was created to solve real pain points for elderly users. Thanks to 
 - 市面上的类似应用要么收费，要么功能复杂，要么已停止维护
 
 **本应用的解决方案：**
-- 在屏幕**顶部 400px** 和**底部 400px** 区域添加**半透明遮挡层**（10% 灰色，几乎不可见）
-- 用户视觉上能看到遮挡，但遮挡层**不拦截触摸**（技术上穿透）
+- 在屏幕**顶部 400px** 和**底部 400px** 区域添加**半透明遮挡层**（10% 灰色，几乎不可见），并支持**左/右 50px** 边缘遮挡
+- 遮挡层窗口会**拦截触摸**，矩形内部点击会被阻止，矩形外仍可正常操作
 - **心理暗示效果**：用户看到遮挡层会**自然避开边缘区域**，大幅减少误触
 - 开机自动启动，无需每次手动开启
 
 ## 核心功能
 
 ✅ **遮挡屏幕边缘**
-- 顶部 400px + 底部 400px（可代码自定义）
+- 顶部 400px + 底部 400px 目标值，并支持左侧 50px + 右侧 50px 遮挡
 - 10% 灰色透明（几乎不可见，但能提示用户）
+- 左右边缘可独立启用，默认开启
 
 ✅ **极简操作**
 - 安装 → 打开 → 授权 → 启动 → 完成
-- 无复杂设置，无广告，无后台上传
+- 主界面包含自启动和左右边缘复选框
+- 无广告，无后台上传
 
 ✅ **开机自启动**
 - 重启后自动恢复遮挡
 - 后台常驻服务
 
+✅ **系统通知**
+- Android 8+ 需要前台服务通知，并提供停止按钮
+
 ❌ **无多余功能**
-- 无设置页面（遵循 UNIX 哲学：只做一件事）
-- 无通知（静默运行）
+- 无单独设置页；控制项直接放在主界面
 - 无网络权限（完全离线）
 
 ## 快速开始
 
 ### 1. 下载 APK
 
-直接下载仓库中的 APK 文件：
+从仓库直接下载 v2.1 APK：
 - **文件名：** `android-edge-blocker.apk`
 - **大小：** 约 3 MB
 - **位置：** 仓库根目录
@@ -486,10 +527,12 @@ This project was created to solve real pain points for elderly users. Thanks to 
 ### 3. 使用
 
 1. 打开应用
-2. 点击"启动遮挡"
-3. 授予"显示悬浮窗"权限（跳转到系统设置）
-4. 返回应用，再次点击"启动遮挡"
-5. ✅ 完成！屏幕顶部和底部会出现极淡的灰色区域
+2. 需要侧边遮挡时，保持左/右复选框开启（默认开启）
+3. 可按需切换自动启动
+4. 点击"启动遮挡"
+5. 授予"显示悬浮窗"权限（跳转到系统设置）
+6. 返回应用，再次点击"启动遮挡"
+7. ✅ 完成！屏幕顶部/底部以及已启用的左右边缘会出现极淡的灰色区域
 
 ### 4. 验证效果
 
@@ -501,13 +544,18 @@ This project was created to solve real pain points for elderly users. Thanks to 
 
 重新打开应用 → 点击"停止遮挡"
 
+> 注意：允许通知后可使用通知里的“停止”按钮；否则请使用主界面的停止按钮。
+
 ## 自定义配置（开发者）
 
-如需修改遮挡参数，编辑 `app/src/main/java/com/simple/edgeblocker/EdgeBlockService.java`：
+如需修改遮挡参数，编辑 `app/src/main/java/com/simple/edgeblocker/EdgeOverlayGeometry.java`：
 
 ```java
-// 修改遮挡高度（像素）
-private static final int BLOCK_HEIGHT = 400;  // 改为 500、600 等
+// 顶部/底部边缘目标高度（物理像素）
+static final int TOP_BOTTOM_TARGET_PX = 400;
+
+// 左/右边缘目标宽度（物理像素）
+static final int SIDE_TARGET_PX = 50;
 
 // 修改颜色和透明度
 view.setBackgroundColor(Color.argb(26, 128, 128, 128));  // ARGB：透明度, R, G, B
@@ -654,6 +702,7 @@ dependencies {
 
 | 版本 | versionCode | 关键变更 |
 |------|-------------|---------|
+| v2.1 | 7 | 左右边缘独立开关、50px 物理侧边遮挡、安全区收缩、前台通知停止按钮、开机/旋转时的权限安全处理 |
 | v2.0 | 6 | 生产版本（10% 灰色透明） |
 | v1.5 | 5 | 添加开机自启动 |
 | v1.4 | 4 | 修复 FOREGROUND_SERVICE 权限问题 |
@@ -698,11 +747,11 @@ dependencies {
 
 ### 问题 3：遮挡层太明显/不够明显
 
-**解决：** 修改 `EdgeBlockService.java` 中的透明度参数（见"自定义配置"）
+**解决：** 修改 `EdgeOverlayGeometry.java` 中的几何常量，以及 `EdgeBlockService.java` 中的颜色/透明度（见"自定义配置"）
 
 ### 问题 4：想要遮挡左右边缘
 
-**解决：** 修改 `createLayoutParams()` 方法，添加左右遮挡层（参考顶部/底部实现）
+**解决：** 在主界面使用左右复选框即可，左右遮挡已经内置
 
 ## 技术实现原理
 
@@ -713,7 +762,8 @@ dependencies {
 ```java
 // 关键标志组合
 params.flags = WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE      // 不获取焦点
-             | WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL     // 触摸穿透
+             | WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL     // 遮挡窗口内部触摸会被拦住
+             | WindowManager.LayoutParams.FLAG_WATCH_OUTSIDE_TOUCH // 保留窗口外触摸
              | WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS;   // 防止裁剪
 ```
 
@@ -731,7 +781,11 @@ startForeground(NOTIFICATION_ID, createNotification());
 @Override
 public void onReceive(Context context, Intent intent) {
     if (Intent.ACTION_BOOT_COMPLETED.equals(intent.getAction())) {
-        context.startService(new Intent(context, EdgeBlockService.class));
+        SharedPreferences prefs = context.getSharedPreferences(EdgeBlockerPrefs.PREFS_NAME, Context.MODE_PRIVATE);
+        if (prefs.getBoolean(EdgeBlockerPrefs.KEY_AUTO_START_ENABLED, true)
+                && Settings.canDrawOverlays(context)) {
+            ContextCompat.startForegroundService(context, new Intent(context, EdgeBlockService.class));
+        }
     }
 }
 ```
@@ -754,21 +808,20 @@ public void onReceive(Context context, Intent intent) {
 - **理论上支持所有第三方应用**（未全面测试）
 
 **❌ 无法遮挡（系统限制）：**
-- **底部导航栏**（3 个按钮：返回/主屏幕/多任务）
-  - Android 系统保护层，任何第三方应用都无法覆盖
-  - 目的：防止恶意应用劫持导航
-- **顶部状态栏/通知栏**
-  - 下拉通知栏时遮挡层会被系统 UI 覆盖
-  - 但在应用内显示时遮挡层仍然有效
-- **系统设置页面**（Settings）
-  - Android 安全机制，防止钓鱼攻击
-  - 在设置中调整时遮挡层暂时不可见
+- **底部导航栏 / 系统手势区域**
+   - Android 会保留这些区域，行为取决于系统和厂商的手势实现
+- **顶部状态栏 / 通知栏**
+   - 系统 UI 和安全区域可能覆盖遮挡层
+- **系统设置和其他安全敏感页面**
+   - 为了安全，系统可能保留手势或隐藏遮挡层
+- **部分 OEM 真机**
+   - 不同厂商/定制 ROM 的实际表现无法保证一致
 
 ### 典型使用场景
 
 **实测场景：血糖监测**
 - 老人使用 Libre FreeStyle 查看血糖数据
-- ✅ 遮挡层覆盖屏幕顶部 400px + 底部 400px
+- ✅ 遮挡层覆盖屏幕顶部 400px + 底部 400px，以及已启用的左右 50px 边缘
 - ✅ 查看数据时手指不会误触边缘导致意外退出
 - ✅ 重启设备后自动恢复遮挡
 
@@ -779,16 +832,17 @@ public void onReceive(Context context, Intent intent) {
 
 ### 遮挡层行为
 
-- **触摸穿透**：遮挡层不拦截触摸事件，只是视觉提示
+- **可触摸遮挡窗口**：遮挡矩形内部的点击会被窗口拦住
 - **心理暗示**：用户看到淡灰色区域会自然避开
-- **始终显示**：覆盖在所有可遮挡应用之上，不会被遮挡消失
+- **始终显示**：覆盖在可遮挡应用之上，但系统安全界面仍可能优先
+- **物理左/右边缘**：使用屏幕左侧和右侧，不做 RTL 镜像
 - **系统级权限**：使用 `TYPE_APPLICATION_OVERLAY` 实现全局覆盖
 
 ## 项目结构
 
 ```
 android-edge-blocker/
-├── android-edge-blocker.apk       # 可直接安装的 APK
+├── android-edge-blocker.apk       # v2.1 APK
 ├── app/
 │   ├── build.gradle               # 应用构建配置
 │   └── src/main/
@@ -920,7 +974,7 @@ owner decisions, not actions performed by this gate.
 
 ---
 
-**版本：** v2.0  
-**最后更新：** 2026-09-03  
+**版本：** v2.1  
+**最后更新：** 2026-09-30  
 **适用场景：** 老年用户、手抖用户、大屏手机误触严重、USB 损坏无法 adb 调试的设备  
 **开发初衷：** 为家人解决实际问题，开源分享给有同样需求的人
