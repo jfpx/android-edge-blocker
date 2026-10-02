@@ -20,6 +20,22 @@ A simple Android app that blocks accidental edge touches on smartphones, specifi
 - Rotation/config changes rebuild all overlays; stop, permission revocation, or fatal errors remove all windows cleanly.
 - Layout uses the **physical display** (not RTL-mirrored edges), ignores insets on Android R+, and allows cutouts.
 
+## Published versions and fixed downloads
+
+| Version | versionCode | Top / bottom targets | Left / right | Immutable APK |
+|---------|-------------|----------------------|--------------|---------------|
+| **2.3 (current)** | **9** | **300px / 600px** | 50px each, independent toggles | [Download 2.3](https://raw.githubusercontent.com/jfpx/android-edge-blocker/6754e6cb449b7af6c6fcaaca337ecab9d2db5d27/android-edge-blocker.apk) |
+| 2.1 (previous public version) | 7 | 400px / 400px | 50px each, independent toggles | [Download 2.1](https://raw.githubusercontent.com/jfpx/android-edge-blocker/1e98c89c7b3e5d345f266a0b73079b552743b0b7/android-edge-blocker.apk) |
+
+All dimensions are physical pixels, not dp. Both retain the existing **200–400px minimum-center safety clamp** (the actual center may be larger): on short screens 2.1 shrinks the top/bottom equally; 2.3 shrinks them proportionally **1:2**, with integer rounding. 2.3 provides more bottom coverage and less top coverage; side toggles and saved auto-start preferences remain.
+
+These URLs pin the APK to its source publication commit, not moving `main`. APK SHA-256:
+
+- **2.3:** `009a6a515b8b5b2b6f397d07c1b5c5f5ef6b303f4cea06a4dc9ea41cf3b653e1`
+- **2.1:** `923dc266c5e709197819b6cb9a632a214c640c9d3238da941b109ed13434b023`
+
+Both public APKs have signing-certificate SHA-256 `7228483a6dbcecfd795a36e3a06a1482003eb890ce458faad84ec1ad4b3a6156`. Android normally permits the same-signer 2.1 → 2.3 upgrade; downgrading is not a normal in-place install. No intermediate 2.2 download is published.
+
 ## Why This App?
 
 **Problem:**
@@ -33,7 +49,7 @@ A simple Android app that blocks accidental edge touches on smartphones, specifi
 - Existing similar apps are either paid, overly complex, or no longer maintained
 
 **Solution:**
-- Adds **semi-transparent overlays** (10% gray, barely visible) at **top 400px** and **bottom 400px**, plus optional **left/right 50px** edge blocks
+- Adds **semi-transparent overlays** (10% gray, barely visible) at **top 300px** and **bottom 600px** targets, plus optional **left/right 50px** edge blocks
 - The overlay windows are **touch-blocking**, so taps inside those rectangles are prevented while the rest of the app still works
 - **Psychological cue effect**: Users naturally avoid edge areas when seeing the overlay
 - Auto-starts on boot, no manual activation needed
@@ -41,7 +57,7 @@ A simple Android app that blocks accidental edge touches on smartphones, specifi
 ## Core Features
 
 ✅ **Edge Blocking**
-- Top 400px + Bottom 400px targets, plus optional Left 50px + Right 50px edge blocks
+- Top 300px + Bottom 600px targets, plus optional Left 50px + Right 50px edge blocks
 - 10% gray transparency (barely visible, but provides visual cue)
 - Left/right are independently enabled and default to on
 
@@ -65,7 +81,7 @@ A simple Android app that blocks accidental edge touches on smartphones, specifi
 
 ### 1. Download APK
 
-Download the v2.1 APK directly from the repository:
+Download the [current v2.3 APK](https://raw.githubusercontent.com/jfpx/android-edge-blocker/6754e6cb449b7af6c6fcaaca337ecab9d2db5d27/android-edge-blocker.apk), or choose the previous version in [the comparison above](#published-versions-and-fixed-downloads):
 - **Filename:** `android-edge-blocker.apk`
 - **Size:** ~3 MB
 - **Location:** Repository root directory
@@ -103,13 +119,14 @@ Reopen app → Tap "Stop Blocking"
 To modify overlay parameters, edit `app/src/main/java/com/simple/edgeblocker/EdgeOverlayGeometry.java`:
 
 ```java
-// Top/bottom edge target height (physical pixels)
-static final int TOP_BOTTOM_TARGET_PX = 400;
+// Independent top/bottom target heights (physical pixels)
+static final int TOP_TARGET_PX = 300;
+static final int BOTTOM_TARGET_PX = 600;
 
 // Left/right edge target width (physical pixels)
 static final int SIDE_TARGET_PX = 50;
 
-// Modify color and transparency
+// In EdgeBlockService.java, modify color and transparency
 view.setBackgroundColor(Color.argb(26, 128, 128, 128));  // ARGB: Alpha, R, G, B
 // 26 = 10% transparency (range 0-255)
 // Change to 51 = 20%, 77 = 30%, 128 = 50%
@@ -127,26 +144,25 @@ Tested with the following environment:
 
 | Component | Version | Notes |
 |-----------|---------|-------|
-| **JDK** | 17.0.x | **Must be Java 17-23** (Gradle 8.10 doesn't support Java 26+) |
+| **JDK** | 17.0.x | Use Java 17 for the supported reproduction commands below |
 | **Gradle** | 8.10 | Gradle Wrapper included, no separate installation needed |
 | **Android SDK** | - | Requires the following components: |
 | ├─ Build Tools | 34.0.0 | Compilation tools |
 | ├─ Platform | API 34 (Android 14) | compileSdk target |
-| └─ Platform | API 23 (Android 6.0) | minSdk minimum version |
+| └─ Minimum runtime | API 23 (Android 6.0) | minSdk; a separate API 23 SDK platform is not required to build |
 | **Android Gradle Plugin** | 8.5.0 | Configured in build.gradle |
 
 ### Quick Environment Check
 
 Before building:
 
-```bash
+```powershell
 # Check Java version (must be 17-23)
 java -version
-# Should display: openjdk version "17.x.x" or "21.x.x"
+# Use JDK 17 for this workflow
 
 # Check Android SDK (if building from command line)
-echo $ANDROID_HOME   # Linux/Mac
-echo %ANDROID_HOME%  # Windows
+$env:ANDROID_HOME
 
 # Or use Android Studio (recommended, auto-manages SDK)
 ```
@@ -155,27 +171,23 @@ echo %ANDROID_HOME%  # Windows
 
 #### Method 1: Command Line Build
 
-```bash
+```powershell
 # 1. Clone repository
 git clone https://github.com/jfpx/android-edge-blocker.git
 cd android-edge-blocker
 
-# 2. Clean previous builds
-./gradlew clean       # Linux/Mac
-gradlew.bat clean     # Windows
-
-# 3. Build Debug version (with debugging info)
-./gradlew assembleDebug
+# 2. Build Debug version (no clean: retain ignored local evidence)
+.\build-apk.ps1 -AndroidSdkPath $env:ANDROID_HOME -Debug
 
 # 4. Output location
-# app/build/outputs/apk/debug/app-debug.apk
+# app\build\outputs\apk\debug\app-debug.apk
 ```
 
 **Release version (production):**
-```bash
-./gradlew assembleRelease
-# Output: app/build/outputs/apk/release/app-release-unsigned.apk
-# Requires manual signing (or use uber-apk-signer)
+```powershell
+.\build-apk.ps1 -AndroidSdkPath $env:ANDROID_HOME -Release
+# Output: app\build\outputs\apk\release\app-release-unsigned.apk
+# Requires your own signing key; see signing notes below
 ```
 
 #### Method 2: Android Studio (Recommended)
@@ -254,6 +266,7 @@ dependencies {
 
 | Version | versionCode | Key Changes |
 |---------|-------------|-------------|
+| v2.3 | 9 | Top 300px / bottom 600px targets; proportional 1:2 short-screen shrink; unchanged 50px side toggles |
 | v2.1 | 7 | Independent left/right toggles, 50px physical side overlays, geometry safety clamp, foreground Stop action, and permission-safe boot/rotation handling |
 | v2.0 | 6 | Production version (10% gray transparency) |
 | v1.5 | 5 | Added auto-start on boot |
@@ -371,9 +384,9 @@ public void onReceive(Context context, Intent intent) {
 
 ### Typical Use Case
 
-**Tested scenario: Blood glucose monitoring**
+**Historical tested scenario: Blood glucose monitoring (not a new v2.3 device validation)**
 - Elderly person uses Libre FreeStyle to view glucose data
-- ✅ Overlay covers screen top 400px + bottom 400px, plus enabled left/right 50px edges
+- ✅ Earlier coverage used top 400px + bottom 400px, plus enabled left/right 50px edges; current v2.3 targets are 300px / 600px
 - ✅ Fingers won't accidentally touch edge causing unexpected exit when viewing data
 - ✅ Overlay auto-restores after device reboot
 
@@ -410,6 +423,9 @@ android-edge-blocker/
 │           └── drawable/ic_launcher.xml     # Adaptive Icon
 ├── build.gradle                   # Project build configuration
 ├── settings.gradle                # Gradle settings
+├── native-fixture/                # Controlled white/black touch-probe source
+├── tools/                         # Owned emulator, native validation, privacy gate
+├── tests/                         # Python host regressions (stdlib unittest)
 ├── BUILD_STEP_BY_STEP.md          # Complete build guide (from scratch, with all actual commands)
 ├── TROUBLESHOOTING.md             # Development experience and troubleshooting guide
 └── README.md                      # This document
@@ -443,7 +459,7 @@ This project was created to solve real pain points for elderly users. Thanks to 
 
 ---
 
-**Version:** v2.1  
+**Version:** v2.3
 **Last Updated:** 2026-09-30  
 **Use Cases:** Elderly users, users with trembling hands, large-screen phones with serious accidental touches, devices with damaged USB preventing adb debugging  
 **Development Motivation:** Solve real problems for family, open-source sharing for others with same needs
@@ -468,6 +484,17 @@ This project was created to solve real pain points for elderly users. Thanks to 
 - 旋转/配置变化会重建全部遮挡；停止、撤销权限或严重错误会清理所有窗口。
 - 布局使用**物理屏幕边缘**（不是 RTL 镜像边缘），R 及以上忽略 insets，并允许 cutout。
 
+## 两个公开版本的区别与固定下载链接
+
+| 版本 | versionCode | 顶部 / 底部目标 | 左侧 / 右侧 | 固定 APK 链接 |
+|------|-------------|----------------|-------------|---------------|
+| **2.3（当前）** | **9** | **300px / 600px** | 各 50px，可独立开关 | [下载 2.3](https://raw.githubusercontent.com/jfpx/android-edge-blocker/6754e6cb449b7af6c6fcaaca337ecab9d2db5d27/android-edge-blocker.apk) |
+| 2.1（上一公开版本） | 7 | 400px / 400px | 各 50px，可独立开关 | [下载 2.1](https://raw.githubusercontent.com/jfpx/android-edge-blocker/1e98c89c7b3e5d345f266a0b73079b552743b0b7/android-edge-blocker.apk) |
+
+单位均为物理像素，不是 dp。两版都保留原有 **200–400px 最小中间安全区约束**（实际中间区域可以更大）；短屏时 2.1 上下均衡收缩，2.3 按 **1:2** 比例收缩并取整。2.3 主要增加底部、减少顶部遮挡；左右开关及已有自启动偏好不变。
+
+链接绑定各版源码发布提交，不会随 `main` 更新而变化。[上方英文对照表](#published-versions-and-fixed-downloads)列出了两个 APK 的 SHA-256。两版签名证书 SHA-256 均为 `7228483a6dbcecfd795a36e3a06a1482003eb890ce458faad84ec1ad4b3a6156`，同签名 2.1 → 2.3 通常可覆盖升级；降级不是普通覆盖安装。中间版本 2.2 不提供公开下载。
+
 ## 为什么需要这个应用？
 
 **问题场景：**
@@ -481,7 +508,7 @@ This project was created to solve real pain points for elderly users. Thanks to 
 - 市面上的类似应用要么收费，要么功能复杂，要么已停止维护
 
 **本应用的解决方案：**
-- 在屏幕**顶部 400px** 和**底部 400px** 区域添加**半透明遮挡层**（10% 灰色，几乎不可见），并支持**左/右 50px** 边缘遮挡
+- 在屏幕以**顶部 300px** 和**底部 600px** 为目标添加**半透明遮挡层**（10% 灰色，几乎不可见），并支持**左/右 50px** 边缘遮挡
 - 遮挡层窗口会**拦截触摸**，矩形内部点击会被阻止，矩形外仍可正常操作
 - **心理暗示效果**：用户看到遮挡层会**自然避开边缘区域**，大幅减少误触
 - 开机自动启动，无需每次手动开启
@@ -489,7 +516,7 @@ This project was created to solve real pain points for elderly users. Thanks to 
 ## 核心功能
 
 ✅ **遮挡屏幕边缘**
-- 顶部 400px + 底部 400px 目标值，并支持左侧 50px + 右侧 50px 遮挡
+- 顶部 300px + 底部 600px 目标值，并支持左侧 50px + 右侧 50px 遮挡
 - 10% 灰色透明（几乎不可见，但能提示用户）
 - 左右边缘可独立启用，默认开启
 
@@ -513,7 +540,7 @@ This project was created to solve real pain points for elderly users. Thanks to 
 
 ### 1. 下载 APK
 
-从仓库直接下载 v2.1 APK：
+直接[下载当前 v2.3 APK](https://raw.githubusercontent.com/jfpx/android-edge-blocker/6754e6cb449b7af6c6fcaaca337ecab9d2db5d27/android-edge-blocker.apk)，上一公开版本见上方对照表：
 - **文件名：** `android-edge-blocker.apk`
 - **大小：** 约 3 MB
 - **位置：** 仓库根目录
@@ -551,13 +578,14 @@ This project was created to solve real pain points for elderly users. Thanks to 
 如需修改遮挡参数，编辑 `app/src/main/java/com/simple/edgeblocker/EdgeOverlayGeometry.java`：
 
 ```java
-// 顶部/底部边缘目标高度（物理像素）
-static final int TOP_BOTTOM_TARGET_PX = 400;
+// 顶部/底部独立目标高度（物理像素）
+static final int TOP_TARGET_PX = 300;
+static final int BOTTOM_TARGET_PX = 600;
 
 // 左/右边缘目标宽度（物理像素）
 static final int SIDE_TARGET_PX = 50;
 
-// 修改颜色和透明度
+// 在 EdgeBlockService.java 中修改颜色和透明度
 view.setBackgroundColor(Color.argb(26, 128, 128, 128));  // ARGB：透明度, R, G, B
 // 26 = 10% 透明度（范围 0-255）
 // 改为 51 = 20%，77 = 30%，128 = 50%
@@ -575,26 +603,25 @@ view.setBackgroundColor(Color.argb(26, 128, 128, 128));  // ARGB：透明度, R,
 
 | 组件 | 版本 | 说明 |
 |------|------|------|
-| **JDK** | 17.0.x | **必须 Java 17-23**（Gradle 8.10 不支持 Java 26+） |
+| **JDK** | 17.0.x | 下方支持的复现流程使用 Java 17 |
 | **Gradle** | 8.10 | 项目已包含 Gradle Wrapper，无需单独安装 |
 | **Android SDK** | - | 需要以下组件： |
 | ├─ Build Tools | 34.0.0 | 编译工具 |
 | ├─ Platform | API 34 (Android 14) | compileSdk 目标 |
-| └─ Platform | API 23 (Android 6.0) | minSdk 最低版本 |
+| └─ 最低运行版本 | API 23 (Android 6.0) | minSdk；构建无需另装 API 23 SDK 平台 |
 | **Android Gradle Plugin** | 8.5.0 | 已在 build.gradle 配置 |
 
 ### 快速环境检查
 
 构建前请确认：
 
-```bash
-# 检查 Java 版本（必须是 17-23）
+```powershell
+# 检查 Java 版本（本流程使用 Java 17）
 java -version
-# 输出应显示：openjdk version "17.x.x" 或 "21.x.x"
+# 输出应显示：openjdk version "17.x.x"
 
 # 检查 Android SDK（如果使用命令行构建）
-echo $ANDROID_HOME   # Linux/Mac
-echo %ANDROID_HOME%  # Windows
+$env:ANDROID_HOME
 
 # 或直接使用 Android Studio（推荐，自动管理 SDK）
 ```
@@ -603,27 +630,23 @@ echo %ANDROID_HOME%  # Windows
 
 #### 方法 1：命令行构建
 
-```bash
+```powershell
 # 1. 克隆仓库
 git clone https://github.com/jfpx/android-edge-blocker.git
 cd android-edge-blocker
 
-# 2. 清理之前的构建
-./gradlew clean       # Linux/Mac
-gradlew.bat clean     # Windows
-
-# 3. 构建 Debug 版本（带调试信息）
-./gradlew assembleDebug
+# 2. 构建 Debug 版本（不执行 clean，保留被忽略的本地证据）
+.\build-apk.ps1 -AndroidSdkPath $env:ANDROID_HOME -Debug
 
 # 4. 输出位置
-# app/build/outputs/apk/debug/app-debug.apk
+# app\build\outputs\apk\debug\app-debug.apk
 ```
 
 **Release 版本（生产环境）：**
-```bash
-./gradlew assembleRelease
-# 输出：app/build/outputs/apk/release/app-release-unsigned.apk
-# 需要手动签名（或使用 uber-apk-signer）
+```powershell
+.\build-apk.ps1 -AndroidSdkPath $env:ANDROID_HOME -Release
+# 输出：app\build\outputs\apk\release\app-release-unsigned.apk
+# 需要自己的签名密钥，见下方签名说明
 ```
 
 #### 方法 2：Android Studio（推荐）
@@ -702,6 +725,7 @@ dependencies {
 
 | 版本 | versionCode | 关键变更 |
 |------|-------------|---------|
+| v2.3 | 9 | 顶部 300px / 底部 600px；短屏按 1:2 收缩；左右 50px 独立开关不变 |
 | v2.1 | 7 | 左右边缘独立开关、50px 物理侧边遮挡、安全区收缩、前台通知停止按钮、开机/旋转时的权限安全处理 |
 | v2.0 | 6 | 生产版本（10% 灰色透明） |
 | v1.5 | 5 | 添加开机自启动 |
@@ -819,9 +843,9 @@ public void onReceive(Context context, Intent intent) {
 
 ### 典型使用场景
 
-**实测场景：血糖监测**
+**历史实测场景：血糖监测（不是本次 v2.3 真机验证）**
 - 老人使用 Libre FreeStyle 查看血糖数据
-- ✅ 遮挡层覆盖屏幕顶部 400px + 底部 400px，以及已启用的左右 50px 边缘
+- ✅ 之前覆盖顶部 400px + 底部 400px，以及已启用的左右 50px 边缘；当前 v2.3 目标为 300px / 600px
 - ✅ 查看数据时手指不会误触边缘导致意外退出
 - ✅ 重启设备后自动恢复遮挡
 
@@ -842,7 +866,7 @@ public void onReceive(Context context, Intent intent) {
 
 ```
 android-edge-blocker/
-├── android-edge-blocker.apk       # v2.1 APK
+├── android-edge-blocker.apk       # v2.3 APK
 ├── app/
 │   ├── build.gradle               # 应用构建配置
 │   └── src/main/
@@ -858,10 +882,193 @@ android-edge-blocker/
 │           └── drawable/ic_launcher.xml     # Adaptive Icon
 ├── build.gradle                   # 项目构建配置
 ├── settings.gradle                # Gradle 设置
+├── native-fixture/                # 可控黑白对比背景和触摸探针源码
+├── tools/                         # 专属模拟器、原生验证、隐私检查
+├── tests/                         # Python 主机回归测试（标准库 unittest）
 ├── BUILD_STEP_BY_STEP.md          # 完整构建指南（从零开始，含所有实际命令）
 ├── TROUBLESHOOTING.md             # 开发经验和问题排查指南
 └── README.md                      # 本文档
 ```
+
+## Reproducible local tests / 可复现的本地测试
+
+All required harness code is in this repository; no session files, private scripts,
+prebuilt probe APK, signing keys, or Python packages are required. Generated logs,
+screenshots, AVD userdata and build outputs stay under ignored `build\` directories.
+The older one-off `device_final.py`, `verify_final.py`, `run-edge-e2e*.ps1` and
+`start-final.ps1` workflows are superseded by the tools below, not runtime inputs.
+
+所有必备测试代码均在仓库中：不依赖会话目录、私人脚本、预编译探针 APK、
+签名私钥或第三方 Python 包。旧的一次性测试脚本已由下列工具替代；
+日志、截图、模拟器用户数据及构建输出保留在被忽略的 `build\` 中，不提交。
+
+### Tools and prerequisites / 工具与依赖
+
+| Checked-in input / 已提交输入 | Purpose / 用途 |
+|---|---|
+| `build-apk.ps1` | Repository Wrapper build from any working directory; no automatic clean or tracked APK replacement / 从任意目录构建，不清理证据、不替换仓库 APK |
+| `tools\emulator.ps1` | Create a fresh owned AVD; receipt-proven Start/Stop / 创建独立 AVD，凭所有权记录启停 |
+| `tools\native_owner_check.ps1` | Live PID identity and listener ownership checks / 核对活进程身份及端口归属 |
+| `tools\native_validation.py` | Explicit-serial native smoke/full validation and private evidence / 指定设备的原生冒烟、完整验证及私有证据 |
+| `native-fixture\` | Independent Android test-app source; built by the runner / 独立触摸测试应用源码，由验证器构建 |
+| `tests\test_build_helper.py`, `tests\test_emulator.py`, `tests\test_native_validation.py` | Offline safety/protocol/geometry regression tests / 离线安全、协议及几何回归测试 |
+| `tests\test_privacy*.py`, `tools\privacy_gate.py`, `app\src\test\` | Existing privacy tests/gate and JVM geometry tests / 原有隐私检查及 JVM 几何测试 |
+
+Use **Windows**, **Python 3.11+**, **PowerShell 7 (`pwsh`)** for all host tests
+(live scripts also support Windows PowerShell 5.1), **JDK 17** through `JAVA_HOME`,
+the checked-in **Gradle 8.10 Wrapper / AGP 8.5.0**, and an official Android SDK.
+Enable hardware virtualization/Windows Hypervisor Platform for the emulator.
+SDK installation and license acceptance are explicit developer actions, never test
+import side effects. `Get-Help .\tools\emulator.ps1 -Full` includes fresh-SDK setup.
+
+完整主机测试需要 Windows、Python 3.11+、PowerShell 7（`pwsh`）；
+原生脚本也支持 Windows PowerShell 5.1。配置 `JAVA_HOME` 指向 JDK 17，
+使用仓库自带 Gradle Wrapper，并安装官方 Android SDK。模拟器需硬件虚拟化支持。
+SDK 下载及许可证确认由开发者明确执行，不会在导入测试时静默安装。
+
+From the repository root, set `$sdk` to your SDK directory and install missing
+packages explicitly / 在仓库根目录，将 `$sdk` 设为自己的 SDK 路径，显式安装缺少的组件：
+
+```powershell
+$sdk = $env:ANDROID_HOME
+# If ANDROID_HOME is unset, assign your SDK directory to $sdk first.
+& "$sdk\cmdline-tools\latest\bin\sdkmanager.bat" "--sdk_root=$sdk" --licenses
+& "$sdk\cmdline-tools\latest\bin\sdkmanager.bat" "--sdk_root=$sdk" `
+  'platform-tools' 'platforms;android-34' 'build-tools;34.0.0' `
+  'emulator' 'system-images;android-34;default;x86_64'
+
+$env:ANDROID_HOME = $sdk
+$env:ANDROID_SDK_ROOT = $sdk
+python -B -m unittest discover -s tests -v
+.\gradlew.bat :app:testDebugUnitTest
+.\build-apk.ps1 -AndroidSdkPath $sdk -Debug
+.\gradlew.bat :native-fixture:assembleDebug
+```
+
+Host tests use mocks, **not native-device evidence**. The fixture is a separate
+module with no dependency from `:app`; app-only builds do not build it. The build
+helper copies successful output only to `build\distributions\SimpleEdgeBlocker-debug.apk`
+(or `SimpleEdgeBlocker-release.apk`, unsigned). It never replaces
+`android-edge-blocker.apk`. `:app:lintDebug` has the known pre-existing
+`ExpiredTargetSdkVersion` failure for target SDK 30; this is not a passing lint run.
+
+主机模拟测试不等于设备实测。探针模块不被 `:app` 依赖；仅构建应用时不会构建探针。
+构建助手只在成功后复制到 `build\distributions\`，不会覆盖仓库 APK。
+`lintDebug` 仍存在 target SDK 30 的既有 `ExpiredTargetSdkVersion` 错误，
+不能将其报告为 lint 通过。
+
+### Owned emulator lifecycle / 独立模拟器启停
+
+The tools require a compatible **external adb server at `127.0.0.1:5037`**.
+If one exists, coordinate with its owner and keep it unchanged. Do not run
+`start-server` with a mismatched SDK: adb may replace the shared server.
+Only when no server exists, use a separate terminal with the same `$sdk`:
+
+工具要求 `127.0.0.1:5037` 已有兼容的 adb 服务。已有共享服务时应与其所有者协调，
+测试期间不要替换它。仅在没有服务时，在另一终端使用相同 `$sdk` 执行：
+
+```powershell
+Remove-Item Env:ADB_SERVER_SOCKET,Env:ANDROID_ADB_SERVER_ADDRESS,Env:ANDROID_ADB_SERVER_PORT,Env:ADB_SERVER_PORT -ErrorAction SilentlyContinue
+& "$sdk\platform-tools\adb.exe" -L tcp:127.0.0.1:5037 server nodaemon
+```
+
+This command binds or fails; it does not replace an existing server. Leave it
+running. In the original terminal / 此命令只绑定端口或报错，不替换已有服务。
+保留该终端运行，在原终端执行：
+
+```powershell
+.\tools\emulator.ps1 Start -Sdk $sdk -Port 5580 -DryRun
+.\tools\emulator.ps1 Start -Sdk $sdk -Port 5580
+# Set $receipt to the exact owner.json path printed by Start.
+$receipt = '<receipt path printed by Start>'
+```
+
+Choose a free even port in 5554–5682; the adjacent port must also be free.
+The default physical display is **1080×1920, density 420**, matching the native
+suite without scaled touch-coordinate rounding. `-Width`, `-Height`, `-Density`
+configure a new AVD for other uses; keep the defaults for this validation suite.
+Start creates a unique AVD and receipt under `build\emulator\`. It never attaches
+to your existing AVD. Stop accepts only receipt-proven process identities, not
+names or serial alone, retains userdata/logs, and never stops the shared adb server.
+Raw server-version checks cannot eliminate every check/use race: do not replace
+the server or interfere with the disposable emulator during validation.
+
+选择空闲偶数端口（5554–5682），相邻端口也须空闲。
+默认物理屏幕为 **1080×1920、density 420**，避免缩放触摸坐标造成边界取整。
+其他用途可用 `-Width`、`-Height`、`-Density` 配置新 AVD；本验证流程保持默认值。
+Start 每次创建独立 AVD 和所有权记录，不接管已有模拟器。Stop 核对 PID、启动时间、命令和路径，
+只停止确认归属的进程，保留用户数据及日志，不停止共享 adb 服务。
+检查与执行间的竞态无法完全消除；测试时不要替换服务或操作该独立模拟器。
+
+### Native smoke and full validation / 原生冒烟与完整验证
+
+```powershell
+# Minimal actual-device smoke: current published APK, strict current geometry.
+python -B tools\native_validation.py --serial emulator-5580 `
+  --receipt $receipt --apk android-edge-blocker.apk --profile 2.3 `
+  --expected-sha256 009a6a515b8b5b2b6f397d07c1b5c5f5ef6b303f4cea06a4dc9ea41cf3b653e1 `
+  --smoke --output build\native-validation\smoke-example
+
+# Full flow: omit --smoke; default output is a fresh UUID directory.
+python -B tools\native_validation.py --serial emulator-5580 `
+  --receipt $receipt --apk android-edge-blocker.apk --profile 2.3
+
+.\tools\emulator.ps1 Stop -Receipt $receipt -DryRun
+.\tools\emulator.ps1 Stop -Receipt $receipt
+```
+
+Check each command's exit code before continuing. Always stop your owned emulator
+after testing, including on failure; retain failed evidence for diagnosis.
+`--output` must be a **new** child of `build\native-validation`, with no
+symlinks/junctions; choose a different name for a rerun. SDK selection comes from
+the validated receipt, preventing mismatches. `--serial`, `--receipt`, `--apk`
+and `--profile` are mandatory; there is no default adb device.
+
+逐条检查退出码。失败也应停止本次自有模拟器并保留失败证据。
+`--output` 必须是 `build\native-validation` 下不存在的新目录，不能经过符号链接
+或目录联接；重跑时换新名称。SDK 由已验证的所有权记录确定。
+必须显式提供设备序列号、所有权记录、APK 和版本配置，不会默认选择 adb 设备。
+
+Smoke builds the fixture from source, verifies installed APK bytes/version,
+checks denied overlay permission, then tests portrait stopped/started rendering,
+exact edge boundaries, blocked edge taps, passing center taps and Stop cleanup.
+Full mode additionally checks both side toggles and persistence, portrait/landscape,
+visible system bars, short-screen safety, landscape Stop scrolling, notification
+Stop, permission revocation and reboot auto-start. JSON evidence explicitly labels
+scope, skipped checks, failures and cleanup errors; screenshots are limited to
+the controlled test fixture. This is not physical-phone/OEM/API23 validation.
+
+冒烟会从源码构建探针、核对安装 APK 字节及版本，并验证权限拒绝、竖屏启停渲染、
+精确边界、边缘拦截和中心放行。完整模式再验证左右独立开关与持久化、横竖屏、
+系统栏、短屏安全区、横屏滚动停止、通知停止、权限撤销及重启恢复。
+JSON 明确记录范围、跳过项、失败及清理错误；只截取受控测试探针画面。
+这不代表实体手机、OEM 或 API23 实测。
+
+For the previous published APK, supply your downloaded file with `--profile 2.1`
+and its SHA-256 above. Profiles strictly select code 7 / symmetric 400+400 or
+code 9 / proportional 300+600; both expect 50px sides. Wrong version/geometry
+fails rather than relaxing pixel thresholds. Full mode optionally accepts
+`--upgrade-from <downloaded-2.1.apk>` for a 2.1 → 2.3 same-signer preference
+upgrade (2.0/code6 → 2.1 is also supported when you supply that older APK).
+Upgrade is explicitly skipped without this argument; it cannot combine with smoke.
+
+测试上一公开版本时，提供下载文件并使用 `--profile 2.1` 和上表哈希。
+版本与几何配置严格匹配，不放宽像素阈值。完整模式可加
+`--upgrade-from <下载的2.1.apk>` 测试同签名升级及偏好保留；
+未提供时明确跳过升级，冒烟模式不接受此参数。
+
+Both app packages must initially be absent on the disposable emulator. The runner
+refuses existing installations instead of clearing data/uninstalling them.
+It restores display overrides and uninstalls only successfully installed owned
+test packages in cleanup; uncertain installs are retained for inspection.
+**A developer's new debug certificate will not upgrade the published APK.**
+Use a fresh emulator for local builds; never uninstall a user's app or clear data
+to work around a signature mismatch. Private signing material is not included.
+
+独立模拟器中两个测试包必须事先不存在；工具不会清除或卸载已有应用来继续测试。
+结束时恢复显示设置，只卸载本次确认安装成功的测试包；安装结果不确定时保留检查。
+**开发者新生成的 debug 证书不能覆盖升级公开 APK。** 本地构建使用独立模拟器，
+不要为绕过签名不一致而卸载用户应用或清数据；仓库不包含签名私钥。
 
 ## Privacy release gate / 发布前隐私检查
 
@@ -974,7 +1181,7 @@ owner decisions, not actions performed by this gate.
 
 ---
 
-**版本：** v2.1  
+**版本：** v2.3
 **最后更新：** 2026-09-30  
 **适用场景：** 老年用户、手抖用户、大屏手机误触严重、USB 损坏无法 adb 调试的设备  
 **开发初衷：** 为家人解决实际问题，开源分享给有同样需求的人

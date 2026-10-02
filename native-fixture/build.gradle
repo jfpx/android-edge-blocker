@@ -1,0 +1,38 @@
+plugins {
+    id 'com.android.application'
+}
+
+def outputProperty = providers.gradleProperty('nativeValidationOutput')
+if (outputProperty.isPresent()) {
+    def allowedRoot = rootProject.file('build\\native-validation').canonicalFile.toPath()
+    def output = rootProject.file(outputProperty.get()).canonicalFile
+    if (output.toPath() == allowedRoot || !output.toPath().startsWith(allowedRoot)) {
+        throw new GradleException('nativeValidationOutput must be a child of build\\native-validation')
+    }
+    layout.buildDirectory.set(output)
+}
+
+android {
+    namespace 'com.example.touchprobe'
+    compileSdk 34
+
+    defaultConfig {
+        applicationId 'com.example.touchprobe'
+        minSdk 23
+        targetSdk 30
+        versionCode 1
+        versionName '1.0'
+    }
+
+    buildTypes {
+        debug {
+            debuggable true
+            minifyEnabled false
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_1_8
+        targetCompatibility JavaVersion.VERSION_1_8
+    }
+}
